@@ -3,7 +3,7 @@ const bedrock = require('bedrock-protocol');
 const serverOptions = {
   host: 'OwnServer-WKpp.aternos.me', 
   port: 48825, // Make sure this matches your active Aternos port right now!                     
-  username: 'Bot_Name',             
+  username: 'Bot',             
   version: '1.26.30', 
   offline: true                         
 };
