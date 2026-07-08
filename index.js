@@ -3,93 +3,95 @@ const bedrock = require('bedrock-protocol');
 function startBot() {
   const client = bedrock.createClient({
     host: 'OwnServer-WKpp.aternos.me',
-    port: 48825, // <-- Keep this updated to your active Aternos port!
+    port: 48825, // <-- Ensure this matches your active Aternos port!
     username: 'Bot_1',
     version: '1.26.30',
     offline: true
   });
 
   let currentPos = { x: 0, y: 0, z: 0 };
-  let currentHealth = 20; // Default full player health
+  let tickCount = BigInt(0);
 
-  // Capture standard spawn position data
+  // Sync position on game join
   client.on('start_game', (packet) => {
     currentPos = packet.player_position;
   });
 
-  // Track position shifts if knocked back or fallen
+  // Keep position updated if pushed by mobs, players, or explosions
   client.on('move_player', (packet) => {
     if (packet.runtime_id === client.runtime_id) {
       currentPos = packet.position;
     }
   });
 
-  // ✅ VITAL SYSTEM FIX: Forces the bot to register damage attributes and lose health
+  // Handle server attribute updates (Health & Damage)
   client.on('update_attributes', (packet) => {
     if (packet.runtime_id === client.runtime_id) {
-      const healthAttribute = packet.attributes.find(attr => attr.name === 'minecraft:health');
-      if (healthAttribute) {
-        currentHealth = healthAttribute.current;
-        console.log(`Bot health updated: ${currentHealth} / 20`);
+      const healthAttr = packet.attributes.find(attr => attr.name === 'minecraft:health');
+      if (healthAttr) {
+        console.log(`Bot Health: ${healthAttr.current} / ${healthAttr.max}`);
         
-        if (currentHealth <= 0) {
-          console.log('Bot has died! Respawning...');
-          // Send a client-side respawn request back to the Aternos engine
-          client.queue('respawn', {
-            position: { x: 0, y: 0, z: 0 }, // Server overrides this with actual spawn point
-            state: 0, // 0 = Searching for spawn
-            runtime_id: client.runtime_id
-          });
+        // Auto-respawn if health drops to 0
+        if (healthAttr.current <= 0) {
+          console.log('Bot died! Sending respawn packet...');
+          setTimeout(() => {
+            client.queue('respawn', {
+              position: currentPos,
+              state: 1, // State 1: Client ready to respawn
+              runtime_id: client.runtime_id
+            });
+          }, 1000);
         }
       }
     }
   });
 
-  // Confirm hits by bouncing a physics input packet back immediately on actor events
-  client.on('actor_event', (packet) => {
-    if (packet.runtime_id === client.runtime_id && packet.event_id === 2) {
-      client.queue('player_auth_input', {
-        position: currentPos,
-        pitch: 0, yaw: 0, head_yaw: 0,
-        input_data: { jump_down: false },
-        input_mode: 'mouse', play_mode: 'normal',
-        tick: BigInt(0)
-      });
-    }
-  });
-
   client.on('spawn', () => {
-    console.log('Bot connected with live health tracking.');
+    console.log('Bot spawned with server-authoritative physics enabled.');
 
-    // Continuous 50ms positional loop so it occupies physical space
+    // High-frequency tick loop (50ms = 20 TPS)
+    // Sends valid player motion ticks back to Aternos so hits/knockback register
     setInterval(() => {
       if (client.status === 'playing' || client.status === 2) {
+        tickCount++;
+
         client.queue('player_auth_input', {
           position: currentPos,
-          pitch: 0, yaw: 0, head_yaw: 0,
-          input_data: { jump_down: false },
-          input_mode: 'mouse', play_mode: 'normal',
-          tick: BigInt(0)
+          pitch: 0,
+          yaw: 0,
+          head_yaw: 0,
+          move_vector: { x: 0, z: 0 },
+          input_data: {
+            jump_down: false,
+            sneak_down: false,
+            want_up: false,
+            want_down: false
+          },
+          input_mode: 'touch',
+          play_mode: 'normal',
+          interaction_model: 'touch',
+          tick: tickCount
         });
       }
     }, 50);
 
-    // Anti-kick loop for Aternos
+    // Keep-alive chat loop for Aternos
     setInterval(() => {
       if (client.status === 'playing' || client.status === 2) {
         client.queue('text', {
           type: 'chat',
           needs_translation: false,
           source_name: client.username,
-          xuid: '', platform_chat_id: '',
-          message: 'Heartbeat active. ❤️'
+          xuid: '',
+          platform_chat_id: '',
+          message: 'Active and synced. 🟢'
         });
       }
     }, 120000);
   });
 
   client.on('close', () => {
-    console.log('Disconnected. Rejoining...');
+    console.log('Disconnected. Reconnecting in 10 seconds...');
     setTimeout(startBot, 10000);
   });
 
