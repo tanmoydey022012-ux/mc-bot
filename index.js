@@ -4,7 +4,7 @@ function startBot() {
   const client = bedrock.createClient({
     host: 'OwnServer-WKpp.aternos.me',
     port: 48825, // <-- Update this to your active Aternos port right now!
-    username: 'Bot_Name',
+    username: 'Bot_1',
     version: '1.26.30',
     offline: true
   });
