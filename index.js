@@ -10,30 +10,48 @@ function startBot() {
   });
 
   let currentPos = { x: 0, y: 0, z: 0 };
+  let currentHealth = 20; // Default full player health
 
-  // Listen for the game starting position
+  // Capture standard spawn position data
   client.on('start_game', (packet) => {
     currentPos = packet.player_position;
   });
 
-  // Track movement packets when the bot is pushed, hit, or falls
+  // Track position shifts if knocked back or fallen
   client.on('move_player', (packet) => {
     if (packet.runtime_id === client.runtime_id) {
       currentPos = packet.position;
     }
   });
 
-  // ✅ DAMAGE FIX: Listen for incoming damage/hurt events from the server
+  // ✅ VITAL SYSTEM FIX: Forces the bot to register damage attributes and lose health
+  client.on('update_attributes', (packet) => {
+    if (packet.runtime_id === client.runtime_id) {
+      const healthAttribute = packet.attributes.find(attr => attr.name === 'minecraft:health');
+      if (healthAttribute) {
+        currentHealth = healthAttribute.current;
+        console.log(`Bot health updated: ${currentHealth} / 20`);
+        
+        if (currentHealth <= 0) {
+          console.log('Bot has died! Respawning...');
+          // Send a client-side respawn request back to the Aternos engine
+          client.queue('respawn', {
+            position: { x: 0, y: 0, z: 0 }, // Server overrides this with actual spawn point
+            state: 0, // 0 = Searching for spawn
+            runtime_id: client.runtime_id
+          });
+        }
+      }
+    }
+  });
+
+  // Confirm hits by bouncing a physics input packet back immediately on actor events
   client.on('actor_event', (packet) => {
-    // Event ID 2 means "Hurt/Damage animation" in Bedrock protocol
     if (packet.runtime_id === client.runtime_id && packet.event_id === 2) {
-      console.log('Bot took damage! Synchronizing health state with server...');
-      
-      // Send a movement input packet back immediately to confirm the hit and apply knockback
       client.queue('player_auth_input', {
         position: currentPos,
         pitch: 0, yaw: 0, head_yaw: 0,
-        input_data: { jump_down: false, sneak_down: false },
+        input_data: { jump_down: false },
         input_mode: 'mouse', play_mode: 'normal',
         tick: BigInt(0)
       });
@@ -41,9 +59,9 @@ function startBot() {
   });
 
   client.on('spawn', () => {
-    console.log('Bot joined with live damage listening enabled.');
+    console.log('Bot connected with live health tracking.');
 
-    // Constant positional synchronization stream (every 50ms)
+    // Continuous 50ms positional loop so it occupies physical space
     setInterval(() => {
       if (client.status === 'playing' || client.status === 2) {
         client.queue('player_auth_input', {
@@ -64,7 +82,7 @@ function startBot() {
           needs_translation: false,
           source_name: client.username,
           xuid: '', platform_chat_id: '',
-          message: 'Monitoring vitals... ❤️'
+          message: 'Heartbeat active. ❤️'
         });
       }
     }, 120000);
