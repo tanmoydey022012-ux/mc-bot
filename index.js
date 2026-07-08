@@ -1,28 +1,14 @@
 const bedrock = require('bedrock-protocol');
-const http = require('http');
-
-// 1. 🟢 RAILWAY FIX: Keep-Alive Web Server
-// This stops Railway from creating duplicates or restarting the bot!
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Bot is healthy and running!\n');
-});
-
-const HTTP_PORT = process.env.PORT || 3000;
-server.listen(HTTP_PORT, () => {
-  console.log(`Keep-alive server listening on port ${HTTP_PORT}`);
-});
 
 function createBot() {
   const serverOptions = {
     host: 'OwnServer-WKpp.aternos.me', 
-    port: 48825, // <-- Update this to your active Aternos port code!                     
-    username: 'Bot_1', // <-- Make sure to /op this username in Aternos!            
+    port: 48825, // <-- Make sure this matches your active Aternos port right now!                     
+    username: 'Bot_Name', // <-- Remember to /op this name in your server console!            
     version: '1.26.30', 
     offline: true                         
   };
 
-  // 📍 YOUR FIXED TARGET COORDINATES
   const x = 390;
   const y = 90;
   const z = -196;
@@ -42,7 +28,7 @@ function createBot() {
       });
     }, 7000);
 
-    // 2. 🤖 ATERNOS IMMUNITY & POSITION LOCK (Runs every 2 minutes)
+    // 🤖 ATERNOS IMMUNITY & POSITION LOCK (Runs every 2 minutes)
     setInterval(() => {
       if (client.status === 'playing' || client.status === 2) {
         console.log('Sending anti-kick activity loop and reinforcing position...');
@@ -57,7 +43,7 @@ function createBot() {
           message: 'Keeping the chunk loaded! 🤖'
         });
 
-        // Backup Teleport: Forces the bot back to your coordinates if pushed by water or mobs
+        // Backup Teleport: Keeps the bot locked at your coordinates
         client.queue('command_request', {
           command: `/tp @s ${x} ${y} ${z}`,
           origin: { type: 'player', uuid: client.uuid || '', request_id: 'loop-teleport' },
