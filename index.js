@@ -3,13 +3,12 @@ const bedrock = require('bedrock-protocol');
 function createBot() {
   const serverOptions = {
     host: 'OwnServer-WKpp.aternos.me', 
-    port: 48825, // <-- Change this to your current active Aternos port code!                     
-    username: 'Bot_1', // <-- Make sure to /op this username in Aternos!            
+    port: 48825, // <-- Update this to your active Aternos port code!                     
+    username: 'Bot_1', // <-- Ensure this name is exactly /op-ed in your server!            
     version: '1.26.30', 
     offline: true                         
   };
 
-  // 📍 YOUR SPECIFIC COORDINATES SET UP HERE:
   const x = 390;
   const y = 90;
   const z = -196;
@@ -17,18 +16,21 @@ function createBot() {
   const client = bedrock.createClient(serverOptions);
 
   client.on('spawn', () => {
-    console.log(`Bot spawned! Dispatching secure console command to teleport to ${x} ${y} ${z}...`);
+    console.log('Bot spawned! Waiting 5 seconds for world chunks to load...');
     
-    // Sends a native Bedrock command packet to execute the teleport
-    client.queue('command_request', {
-      command: `/tp @s ${x} ${y} ${z}`,
-      origin: {
-        type: 'player',
-        uuid: client.uuid || '',
-        request_id: 'teleport-bot'
-      },
-      internal: false
-    });
+    // ✅ Fix: Wait 5 seconds so the server acknowledges the bot's existence before running commands
+    setTimeout(() => {
+      console.log(`Sending command: /tp @s ${x} ${y} ${z}`);
+      client.queue('command_request', {
+        command: `/tp @s ${x} ${y} ${z}`,
+        origin: {
+          type: 'player',
+          uuid: client.uuid || '',
+          request_id: 'teleport-bot'
+        },
+        internal: false
+      });
+    }, 5000); // 5000 milliseconds = 5 seconds
 
     // Anti-AFK Loop: Runs every 3 minutes
     setInterval(() => {
