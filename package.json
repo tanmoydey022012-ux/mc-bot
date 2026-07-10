@@ -1,12 +1,24 @@
 {
-  "name": "mc-bot",
+  "name": "mc-bedrock-bot",
   "version": "1.0.0",
-  "description": "Aternos AFK Bot",
+  "description": "Auto-reconnecting Bedrock bot with Puppeteer web-start integration for Aternos",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
+  "keywords": [
+    "minecraft",
+    "bedrock",
+    "bot",
+    "aternos"
+  ],
+  "author": "Tanmoy Dey",
+  "license": "ISC",
   "dependencies": {
-    "bedrock-protocol": "^3.30.0"
+    "bedrock-protocol": "^3.26.0",
+    "puppeteer": "^22.0.0"
+  },
+  "engines": {
+    "node": "20"
   }
 }
