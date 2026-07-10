@@ -1,61 +1,99 @@
 const bedrock = require('bedrock-protocol');
-const https = require('https');
+const puppeteer = require('puppeteer');
 
 let afkInterval = null;
+let isStartingServer = false;
 
-// 🔑 PASTE YOUR DATA HERE:
+// 🔑 Your live Aternos session cookie
 const COOKIE = 'pl76FriQR0ZUD0lvotluKGMAKXkywARi9FCCXqQ7Nso6ITS57NIqlzb5N2llmfUYVVEFPZN051F4mER31yTB7mO8b0pBM6sHwgFL';
-const SERVER_ID = 'CveOASy6tmyWYe9j'; // <-- Put your ATERNOS_SERVER value here!
 
-// 🌐 Fixed Auto-start function matching the internal Aternos ajax request
-function wakeUpAternos() {
-  console.log('Sending secure auto-start instruction to Aternos backend...');
+// 🌐 Browser automation logic to launch Chrome and force-start the panel
+async function forceStartAternos() {
+  if (isStartingServer) {
+    console.log('🤖 Browser action already running. Skipping overlap loop...');
+    return;
+  }
   
-  const options = {
-    hostname: 'aternos.org',
-    path: `/panel/ajax/start.php?headroom=0&SEC=`, // Hits the absolute direct start action
-    method: 'GET',
-    headers: {
-      'Cookie': `ATERNOS_SESSION=${COOKIE}; ATERNOS_SERVER=${SERVER_ID}`,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'X-Requested-With': 'XMLHttpRequest', // Tells Aternos this is a real browser action
-      'Referer': 'https://aternos.org/server/'
-    }
-  };
+  isStartingServer = true;
+  console.log('🤖 Launching real automated browser instance to trigger Start sequence...');
 
-  const req = https.request(options, (res) => {
-    if (res.statusCode === 200) {
-      console.log('Successfully authorized! Server boot sequence initiated.');
+  let browser;
+  try {
+    // Launches headless Chromium tailored specifically for Linux cloud deployment environments
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+    });
+
+    const page = await browser.newPage();
+    
+    // Inject your live authentication token directly into Chrome memory
+    await page.setCookie({
+      name: 'ATERNOS_SESSION',
+      value: COOKIE,
+      domain: '.aternos.org',
+      path: '/'
+    });
+
+    console.log('Navigating safely to your Aternos web panel...');
+    await page.goto('https://aternos.org/server/', { waitUntil: 'networkidle2', timeout: 60000 });
+
+    const startButtonSelector = '#start'; 
+    console.log('Scanning web document layout for action modules...');
+    await page.waitForSelector(startButtonSelector, { timeout: 15000 });
+
+    const buttonText = await page.$eval(startButtonSelector, el => el.innerText.trim());
+    
+    if (buttonText.toLowerCase().includes('start')) {
+      console.log('Found "Start" button! Simulating structural cursor click action...');
+      await page.click(startButtonSelector);
+      
+      // Modern delay alternative replacing deprecated waitForTimeout method
+      await new Promise(resolve => setTimeout(resolve, 5000)); 
+      
+      const confirmButtonSelector = '#confirm';
+      const confirmVisible = await page.$(confirmButtonSelector);
+      if (confirmVisible) {
+        console.log('Queue reservation detected. Confirming server position...');
+        await page.click(confirmButtonSelector);
+      }
+      
+      console.log('🎉 Structural action click executed successfully by browser container!');
     } else {
-      console.log(`Web panel ping returned status code: ${res.statusCode}. Check if cookie expired.`);
+      console.log(`Server does not require wake-up instructions. Current state: ${buttonText}`);
     }
-  });
 
-  req.on('error', (err) => {
-    console.log('Failed to reach web interface:', err.message);
-  });
-
-  req.end();
+  } catch (err) {
+    console.log('❌ Browser loop error encountered:', err.message);
+  } finally {
+    if (browser) {
+      await browser.close();
+      console.log('Headless browser instance safely terminated.');
+    }
+    isStartingServer = false;
+  }
 }
 
+// 🤖 Core Bedrock connection and continuous loop logic
 function startBot() {
-  console.log('Attempting to connect to the server...');
+  console.log('Attempting connection handshake to Minecraft Bedrock server...');
   
   const client = bedrock.createClient({
     host: 'OwnServer-WKpp.aternos.me',
-    port: 48825, // <-- Make sure this matches your active port!
+    port: 48825, // <-- ⚠️ Always double-check if your dashboard port changes!
     username: 'Bot_1', 
     version: '1.26.30',
     offline: true
   });
 
   client.on('spawn', () => {
-    console.log('Bot successfully connected to the server.');
+    console.log('Bot successfully connected to world space.');
     if (afkInterval) clearInterval(afkInterval);
 
+    // 🛡️ Continuous Anti-Kick Pulse
     afkInterval = setInterval(() => {
       if (client && (client.status === 'playing' || client.status === 2)) {
-        console.log('Sending anti-AFK activity pulse...');
+        console.log('Sending structural anti-AFK heartbeat pulse...');
         client.queue('text', {
           type: 'chat',
           needs_translation: false,
@@ -65,18 +103,20 @@ function startBot() {
           message: 'Keeping the server alive! 🤖'
         });
       }
-    }, 120000);
+    }, 120000); // 2 minutes
   });
 
+  // 🔄 Handle Offline drops or platform restarts
   client.on('close', () => {
-    console.log('Connection lost. Triggering server check...');
-    wakeUpAternos();
+    console.log('Connection pipe severed cleanly. Re-evaluating server panel options...');
+    forceStartAternos();
     cleanupAndRetry();
   });
 
+  // ⚠️ Handle structural runtime network timeouts (Server asleep)
   client.on('error', (err) => {
-    console.log('Network Error or Ping Timed Out:', err.message);
-    wakeUpAternos();
+    console.log('Network endpoint dropped or timed out:', err.message);
+    forceStartAternos(); 
     cleanupAndRetry();
   });
 }
@@ -86,7 +126,9 @@ function cleanupAndRetry() {
     clearInterval(afkInterval);
     afkInterval = null;
   }
-  setTimeout(startBot, 20000);
+  // 25-second countdown window gives Chrome ample time to clear memory buffers before trying to rejoin
+  setTimeout(startBot, 25000);
 }
 
+// Kick off the application loops
 startBot();
