@@ -4,7 +4,7 @@ const bedrock = require('bedrock-protocol');
 // (Uses Environment Variables if set, otherwise defaults to your server settings)
 const SERVER_HOST = process.env.SERVER_HOST || 'OwnServer-WKpp.aternos.me';
 const SERVER_PORT = parseInt(process.env.SERVER_PORT, 10) || 48825; // ⚠️ Update if Aternos changes port!
-const BOT_NAME = process.env.BOT_NAME || 'Bot_1';
+const BOT_NAME = process.env.BOT_NAME || 'Bot';
 const MINECRAFT_VERSION = process.env.MINECRAFT_VERSION || '1.26.30';
 
 let afkInterval = null;
