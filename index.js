@@ -3,21 +3,22 @@ const bedrock = require('bedrock-protocol');
 // ⚙️ Configuration
 const SERVER_HOST = process.env.SERVER_HOST || 'OwnServer-WKpp.aternos.me';
 const SERVER_PORT = parseInt(process.env.SERVER_PORT, 10) || 48825;
-const BOT_NAME = process.env.BOT_NAME || 'Bot'; // Changed name to avoid old ghost bot conflicts
+const BOT_NAME = process.env.BOT_NAME || 'Bot_1';
 const MINECRAFT_VERSION = process.env.MINECRAFT_VERSION || '1.26.30';
 
 let client = null;
 let afkInterval = null;
 let reconnectTimeout = null;
-let isConnecting = false;
+let isBusy = false; // 🔒 Strict single-instance lock
 
-function startBot() {
-  // Guarantee ONLY ONE bot attempt runs at any given time
-  if (client || isConnecting) {
+function createSingleBot() {
+  // If a connection is already being established or active, STOP immediately
+  if (isBusy || client) {
+    console.log(`[${getTimestamp()}] 🛑 Connection attempt blocked: A bot instance is already active or connecting.`);
     return;
   }
 
-  isConnecting = true;
+  isBusy = true;
   console.log(`[${getTimestamp()}] 📡 Connecting to ${SERVER_HOST}:${SERVER_PORT} as ${BOT_NAME}...`);
 
   try {
@@ -29,70 +30,72 @@ function startBot() {
       offline: true
     });
 
-    // 🎉 Bot successfully connected and spawned into the world
+    // 🎉 Bot successfully connected and spawned
     client.on('spawn', () => {
-      isConnecting = false;
-      console.log(`[${getTimestamp()}] 🎉 ${BOT_NAME} joined the server successfully!`);
+      console.log(`[${getTimestamp()}] 🎉 ${BOT_NAME} joined successfully! Locks active.`);
 
-      // Clear previous anti-AFK loop if active
+      // Clear old intervals if any existed
       if (afkInterval) clearInterval(afkInterval);
 
-      // 💓 Anti-AFK & Anti-Kick Loop (Sends message every 2 minutes)
+      // 💓 Anti-AFK Chat Loop (Every 2 minutes)
       afkInterval = setInterval(() => {
         if (client && (client.status === 'playing' || client.status === 2)) {
           client.queue('text', {
             type: 'chat',
             needs_translation: false,
             source_name: client.username,
-            message: '🤖 Bot Active & Keeping Server Online'
+            message: '🤖 Single Bot Active'
           });
           console.log(`[${getTimestamp()}] 💓 Sent Anti-AFK activity pulse.`);
         }
       }, 120000);
     });
 
-    // ❌ Connection closed or bot kicked
+    // ❌ Connection closed
     client.on('close', () => {
-      console.log(`[${getTimestamp()}] 🔌 Connection closed. Retrying in 10 seconds...`);
-      handleDisconnect();
+      console.log(`[${getTimestamp()}] 🔌 Connection closed.`);
+      cleanAndScheduleReconnect();
     });
 
-    // ⚠️ Server offline or unreachable
+    // ⚠️ Connection error
     client.on('error', (err) => {
-      console.log(`[${getTimestamp()}] ⏳ Server offline or restarting (${err.message}). Retrying in 10s...`);
-      handleDisconnect();
+      console.log(`[${getTimestamp()}] ⏳ Network error (${err.message}).`);
+      cleanAndScheduleReconnect();
     });
 
   } catch (err) {
-    console.log(`[${getTimestamp()}] ⚠️ Failed to initialize bot: ${err.message}`);
-    handleDisconnect();
+    console.log(`[${getTimestamp()}] ⚠️ Failed to initialize client: ${err.message}`);
+    cleanAndScheduleReconnect();
   }
 }
 
-function handleDisconnect() {
-  // Clean up existing client and timers
+function cleanAndScheduleReconnect() {
+  // 1. Stop AFK timer
   if (afkInterval) {
     clearInterval(afkInterval);
     afkInterval = null;
   }
 
+  // 2. Disconnect and nullify client reference
   if (client) {
     try {
       client.close();
     } catch (e) {
-      // Ignore cleanup errors
+      // Ignore cleanup error
     }
     client = null;
   }
 
-  isConnecting = false;
+  // 3. Clear any existing scheduled reconnects
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
 
-  // Prevent duplicate reconnect timers stacking
-  if (reconnectTimeout) clearTimeout(reconnectTimeout);
-
-  // Reconnect attempt every 10 seconds
+  // 4. Wait 10 seconds, then release lock and attempt reconnect
   reconnectTimeout = setTimeout(() => {
-    startBot();
+    isBusy = false; // Unlock only right before attempting connection
+    createSingleBot();
   }, 10000);
 }
 
@@ -100,5 +103,5 @@ function getTimestamp() {
   return new Date().toLocaleTimeString();
 }
 
-// 🚀 Start the single bot loop
-startBot();
+// 🚀 Initialize single bot instance
+createSingleBot();
