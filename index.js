@@ -1,21 +1,26 @@
 const bedrock = require('bedrock-protocol');
 
-// ⚙️ Configuration (Uses Environment Variables if available, otherwise defaults)
+// ⚙️ Server Configuration
+// (Uses Environment Variables if set, otherwise defaults to your server settings)
 const SERVER_HOST = process.env.SERVER_HOST || 'OwnServer-WKpp.aternos.me';
-const SERVER_PORT = parseInt(process.env.SERVER_PORT, 10) || 48825; // ⚠️ Update port if Aternos changes it!
+const SERVER_PORT = parseInt(process.env.SERVER_PORT, 10) || 48825; // ⚠️ Update if Aternos changes port!
 const BOT_NAME = process.env.BOT_NAME || 'Bot_1';
 const MINECRAFT_VERSION = process.env.MINECRAFT_VERSION || '1.26.30';
 
 let afkInterval = null;
-let isReconnecting = false;
+let reconnectTimer = null;
+let activeClient = null;
 
 function connectBot() {
-  if (isReconnecting) return;
-  isReconnecting = true;
+  // Prevent duplicate instances if already connected or connecting
+  if (activeClient) {
+    console.log('⚠️ Connection attempt skipped: Bot instance already active.');
+    return;
+  }
 
-  console.log(`[${new Date().toLocaleTimeString()}] 📡 Checking connection to ${SERVER_HOST}:${SERVER_PORT}...`);
+  console.log(`[${getTimestamp()}] 📡 Connecting to ${SERVER_HOST}:${SERVER_PORT} as ${BOT_NAME}...`);
 
-  const client = bedrock.createClient({
+  activeClient = bedrock.createClient({
     host: SERVER_HOST,
     port: SERVER_PORT,
     username: BOT_NAME,
@@ -23,53 +28,62 @@ function connectBot() {
     offline: true
   });
 
-  // 🎉 Triggered immediately when server opens and bot joins
-  client.on('spawn', () => {
-    console.log(`[${new Date().toLocaleTimeString()}] 🎉 ${BOT_NAME} joined the world successfully!`);
-    isReconnecting = false;
+  // 🎉 Triggered when the server is online and bot joins the world
+  activeClient.on('spawn', () => {
+    console.log(`[${getTimestamp()}] 🎉 ${BOT_NAME} successfully spawned into the world!`);
 
-    // Clear any active interval to prevent duplicate timers
+    // Clear previous timers
     if (afkInterval) clearInterval(afkInterval);
 
-    // 💓 Anti-AFK & Keep-Alive Activity Loop
-    // Sends a chat pulse every 2 minutes so the bot is never kicked for inactivity
+    // 💓 Anti-AFK & Keep-Alive Loop (Every 2 minutes)
     afkInterval = setInterval(() => {
-      if (client && (client.status === 'playing' || client.status === 2)) {
-        client.queue('text', {
+      if (activeClient && (activeClient.status === 'playing' || activeClient.status === 2)) {
+        activeClient.queue('text', {
           type: 'chat',
           needs_translation: false,
-          source_name: client.username,
+          source_name: activeClient.username,
           message: '🤖 Active & Online'
         });
+        console.log(`[${getTimestamp()}] 💓 Sent Anti-AFK activity pulse.`);
       }
     }, 120000); 
   });
 
-  // ❌ Triggered when server closes, restarts, or kicks the bot
-  client.on('close', () => {
-    console.log(`[${new Date().toLocaleTimeString()}] 🔌 Connection closed. Retrying in 15 seconds...`);
+  // ❌ Triggered when connection drops or server closes
+  activeClient.on('close', () => {
+    console.log(`[${getTimestamp()}] 🔌 Connection closed. Clearing session and retrying in 30s...`);
     cleanupAndRetry();
   });
 
   // ⚠️ Triggered when server is offline or unreachable
-  client.on('error', (err) => {
-    console.log(`[${new Date().toLocaleTimeString()}] ⏳ Server offline or starting up... (${err.message})`);
+  activeClient.on('error', (err) => {
+    console.log(`[${getTimestamp()}] ⏳ Server offline or starting up (${err.message}). Retrying in 30s...`);
     cleanupAndRetry();
   });
 }
 
 function cleanupAndRetry() {
+  // Clear AFK loop timer
   if (afkInterval) {
     clearInterval(afkInterval);
     afkInterval = null;
   }
-  
-  // Wait 15 seconds before trying to join again
-  setTimeout(() => {
-    isReconnecting = false;
+
+  // Nullify client reference to allow clean garbage collection
+  activeClient = null;
+
+  // Prevent stacking multiple reconnect timers
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+
+  // Wait 30 seconds to allow Aternos/Bedrock to clear ghost sessions before reconnecting
+  reconnectTimer = setTimeout(() => {
     connectBot();
-  }, 15000);
+  }, 30000);
 }
 
-// 🚀 Start the continuous join loop
+function getTimestamp() {
+  return new Date().toLocaleTimeString();
+}
+
+// 🚀 Start continuous connection loop
 connectBot();
