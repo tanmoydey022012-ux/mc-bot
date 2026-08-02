@@ -1,7 +1,7 @@
 {
   "name": "mc-bedrock-bot",
   "version": "1.0.0",
-  "description": "Auto-reconnecting Bedrock bot for Aternos",
+  "description": "Auto-reconnecting Bedrock bot for Aternos Minecraft servers",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
