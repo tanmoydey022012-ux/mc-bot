@@ -9,10 +9,7 @@ const MINECRAFT_VERSION = process.env.MINECRAFT_VERSION || '1.26.30';
 let client = null;
 
 function connectBot() {
-  // STRICT GUARD: If a bot object already exists, DO NOT create another one.
-  if (client) {
-    return;
-  }
+  if (client) return;
 
   console.log(`📡 Connecting 1 bot: ${BOT_NAME}...`);
 
@@ -21,14 +18,14 @@ function connectBot() {
     port: SERVER_PORT,
     username: BOT_NAME,
     version: MINECRAFT_VERSION,
-    offline: true
+    offline: true,
+    raknetBackend: 'jsp-raknet' // 👈 FIXES THE NODE v24 CRASH
   });
 
   client.on('spawn', () => {
-    console.log(`🎉 ${BOT_NAME} connected and is staying in the world.`);
+    console.log(`🎉 ${BOT_NAME} connected!`);
   });
 
-  // If disconnected or errored, clear the bot object and try to join again in 10s
   client.on('close', () => {
     console.log('🔌 Disconnected. Reconnecting in 10s...');
     client = null;
@@ -36,11 +33,10 @@ function connectBot() {
   });
 
   client.on('error', (err) => {
-    console.log(`⚠️ Network error: ${err.message}. Reconnecting in 10s...`);
+    console.log(`⚠️ Error: ${err.message}. Reconnecting in 10s...`);
     client = null;
     setTimeout(connectBot, 10000);
   });
 }
 
-// Start the single bot
 connectBot();
