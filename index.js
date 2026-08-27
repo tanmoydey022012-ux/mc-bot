@@ -15,8 +15,9 @@ function connectBot() {
     host: SERVER_HOST,
     port: SERVER_PORT,
     username: BOT_NAME,
+    version: '1.26.44', // 👈 Fixed version prevents pinging
     offline: true,
-    skipPing: false
+    skipPing: true      // 👈 Skips the pre-join UDP ping entirely
   });
 
   client.on('spawn', () => {
