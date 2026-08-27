@@ -1,6 +1,5 @@
 const bedrock = require('bedrock-protocol');
 
-// ⚙️ Configuration
 const SERVER_HOST = process.env.SERVER_HOST || 'OwnServer-WKpp.aternos.me';
 const SERVER_PORT = parseInt(process.env.SERVER_PORT, 10) || 48825;
 const BOT_NAME = process.env.BOT_NAME || 'Bot';
@@ -18,12 +17,11 @@ function connectBot() {
     port: SERVER_PORT,
     username: BOT_NAME,
     version: MINECRAFT_VERSION,
-    offline: true,
-    raknetBackend: 'jsp-raknet' // 👈 FIXES THE NODE v24 CRASH
+    offline: true
   });
 
   client.on('spawn', () => {
-    console.log(`🎉 ${BOT_NAME} connected!`);
+    console.log(`🎉 ${BOT_NAME} connected and staying online!`);
   });
 
   client.on('close', () => {
