@@ -1,25 +1,28 @@
 name: Minecraft Bedrock Bot
 
 on:
-  workflow_dispatch: # Allows manual start
-  schedule:
-    - cron: '0 */5 * * *' # Automatically restarts every 5 hours to stay 24/7
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js (Version 20)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+    - name: Setup Node.js (Version 20)
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
 
-      - name: Install Dependencies
-        run: npm install
+    - name: Install Dependencies
+      run: npm install
 
-      - name: Start Single Bot
-        run: node index.js
+    - name: Start Single Bot
+      run: |
+        until node index.js; do
+          echo "Bot disconnected or server was offline. Retrying fresh connection in 15 seconds..."
+          sleep 15
+        done
         
