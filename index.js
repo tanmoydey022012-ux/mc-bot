@@ -1,47 +1,47 @@
 const bedrock = require('bedrock-protocol');
 
-let connectionTimeout;
-
-function createBot() {
-  console.log("📡 Connecting Bot to server...");
-
-  // Force exit if connection hangs for more than 25 seconds
-  connectionTimeout = setTimeout(() => {
-    console.log("⏱️ Connection timed out (Server likely offline). Exiting process to retry...");
-    process.exit(1);
-  }, 25000);
+function startBot() {
+  console.log("📡 Connecting Bot to Aternos server...");
 
   const client = bedrock.createClient({
     host: 'OwnServer-WKpp.aternos.me',
     port: 48825,
     username: 'Bot',
     offline: true,
-    version: '1.26.40',
-    skipPing: true
+    version: '1.26.45', // Updated to match your Aternos server
+    skipPing: true,
+    raknetBackend: 'jsp-raknet'
   });
 
   client.on('join', () => {
-    clearTimeout(connectionTimeout);
     console.log("🎉 Bot successfully connected and online!");
   });
 
   client.on('disconnect', (packet) => {
-    clearTimeout(connectionTimeout);
-    console.log(`❌ Disconnected: ${packet.reason || 'Server shut down'}`);
-    process.exit(1);
+    console.log(`❌ Disconnected: ${packet.reason || 'Server offline'}`);
+    reconnect();
   });
 
   client.on('error', (err) => {
-    clearTimeout(connectionTimeout);
     console.log(`⚠️ Connection error: ${err.message}`);
-    process.exit(1);
+    reconnect();
   });
 
   client.on('end', () => {
-    clearTimeout(connectionTimeout);
-    console.log("🔌 Connection ended. Exiting process...");
-    process.exit(1);
+    console.log("🔌 Connection closed.");
+    reconnect();
   });
 }
 
-createBot();
+let isReconnecting = false;
+function reconnect() {
+  if (isReconnecting) return;
+  isReconnecting = true;
+  console.log("⏳ Retrying connection in 15 seconds...");
+  setTimeout(() => {
+    isReconnecting = false;
+    startBot();
+  }, 15000);
+}
+
+startBot();
