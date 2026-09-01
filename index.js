@@ -1,13 +1,13 @@
 const bedrock = require('bedrock-protocol');
 
-// Server configuration locked to version 1.26.40
+// Dynamic configuration letting the library ping and negotiate the server version
 const CONFIG = {
   host: process.env.SERVER_HOST || 'OwnServer-WKpp.aternos.me',
   port: parseInt(process.env.SERVER_PORT) || 48825,
   username: process.env.BOT_NAME || 'Bot',
   offline: true,
-  version: '1.26.40', // Set to 1.26.40 to match the maximum supported library version
-  skipPing: true,     // Forces protocol version without pinging the server check
+  // 'version' is omitted so bedrock-protocol auto-detects the server version
+  skipPing: false, // Must be false to enable version auto-negotiation
   raknetBackend: 'jsp-raknet'
 };
 
@@ -16,19 +16,19 @@ let isReconnecting = false;
 let afkInterval = null;
 
 function startBot() {
-  console.log(`📡 Connecting ${CONFIG.username} to ${CONFIG.host}:${CONFIG.port} (Forced v${CONFIG.version})...`);
+  console.log(`📡 Ping & Connecting ${CONFIG.username} to ${CONFIG.host}:${CONFIG.port}...`);
 
   try {
     client = bedrock.createClient(CONFIG);
 
-    // Connection success event
+    // Successful join
     client.on('join', () => {
       console.log("🎉 Bot successfully connected and online!");
       isReconnecting = false;
       startAntiAFK();
     });
 
-    // Chat log handler
+    // Incoming chat handler
     client.on('text', (packet) => {
       if (packet.message) {
         console.log(`💬 [CHAT] ${packet.source_name || 'Server'}: ${packet.message}`);
@@ -47,7 +47,7 @@ function startBot() {
       cleanUpAndReconnect();
     });
 
-    // Connection close event
+    // Socket closure
     client.on('end', () => {
       console.log("🔌 Connection closed.");
       cleanUpAndReconnect();
@@ -59,7 +59,7 @@ function startBot() {
   }
 }
 
-// Anti-AFK routine (sends dummy player auth input packets)
+// Anti-AFK routine to send periodic movement/input packets
 function startAntiAFK() {
   if (afkInterval) clearInterval(afkInterval);
   
@@ -84,20 +84,18 @@ function startAntiAFK() {
           play_mode: 'normal',
           interaction_model: 'touch',
           gaze_direction: { x: 0, y: 0, z: 0 },
-          tick: 0, // Keeps tick as standard integer to prevent serialization errors
+          tick: 0,
           delta: { x: 0, y: 0, z: 0 },
           transaction: null,
           item_stack_request: null,
           block_action: null
         });
-      } catch (e) {
-        // Silently catch packet frame issues if the server drops connection
-      }
+      } catch (e) {}
     }
-  }, 30000); // Trigger every 30 seconds
+  }, 30000);
 }
 
-// Clear timers and trigger 15-second reconnect sequence
+// Clean up timers and queue reconnection
 function cleanUpAndReconnect() {
   if (afkInterval) {
     clearInterval(afkInterval);
@@ -125,5 +123,5 @@ process.on('uncaughtException', (err) => {
   cleanUpAndReconnect();
 });
 
-// Execute bot connection
+// Start the bot execution loop
 startBot();
