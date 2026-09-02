@@ -1,42 +1,75 @@
 const bedrock = require('bedrock-protocol');
 
+// Server configuration
+const CONFIG = {
+  host: process.env.SERVER_HOST || 'OwnServer-WKpp.aternos.me',
+  port: parseInt(process.env.SERVER_PORT) || 48825,
+  username: process.env.BOT_NAME || 'Aternos_KeepAlive',
+  offline: true,
+  skipPing: true,
+  raknetBackend: 'jsp-raknet', // Bypasses native C++ compilation requirements
+  protocolVersion: 681         // Forces client handshake on recent Bedrock protocols
+};
+
+let client = null;
+let reconnectTimer = null;
+
 function createBot() {
-  console.log("📡 Attempting connection to pure Bedrock server...");
+  console.log(`📡 Connecting to pure Bedrock server at ${CONFIG.host}:${CONFIG.port}...`);
 
-  const client = bedrock.createClient({
-    host: 'OwnServer-WKpp.aternos.me',
-    port: 48825,
-    username: 'Aternos_KeepAlive',
-    offline: true,
-    skipPing: true,
-    // Force latest protocol version handshake
-    protocolVersion: 681 
-  });
+  try {
+    client = bedrock.createClient(CONFIG);
 
-  client.on('spawn', () => {
-    console.log("🎉 SUCCESS: Bot joined the Bedrock world!");
-  });
+    client.on('spawn', () => {
+      console.log("🎉 SUCCESS: Bot spawned inside the Bedrock world!");
+    });
 
-  client.on('text', (packet) => {
-    if (packet.message) {
-      console.log(`💬 [CHAT] ${packet.source_name || 'Server'}: ${packet.message}`);
-    }
-  });
+    client.on('text', (packet) => {
+      if (packet.message) {
+        console.log(`💬 [CHAT] ${packet.source_name || 'Server'}: ${packet.message}`);
+      }
+    });
 
-  client.on('disconnect', (packet) => {
-    console.log(`❌ Disconnected: ${packet.reason}`);
-    reconnect();
-  });
+    client.on('disconnect', (packet) => {
+      console.log(`❌ Disconnected: ${packet.reason || 'Server closed connection'}`);
+      handleReconnect();
+    });
 
-  client.on('error', (err) => {
-    console.log(`⚠️ Connection Error: ${err.message}`);
-    reconnect();
-  });
+    client.on('error', (err) => {
+      console.log(`⚠️ Socket Error: ${err.message}`);
+      handleReconnect();
+    });
+
+    client.on('end', () => {
+      console.log("🔌 Connection ended.");
+      handleReconnect();
+    });
+
+  } catch (err) {
+    console.log(`⚠️ Initialization Error: ${err.message}`);
+    handleReconnect();
+  }
 }
 
-function reconnect() {
+function handleReconnect() {
+  if (client) {
+    client.removeAllListeners();
+    client = null;
+  }
+
+  if (reconnectTimer) return;
+
   console.log("⏳ Reconnecting in 15 seconds...");
-  setTimeout(createBot, 15000);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    createBot();
+  }, 15000);
 }
+
+// Global crash handler to keep process alive
+process.on('uncaughtException', (err) => {
+  console.log(`⚠️ Uncaught Exception: ${err.message}`);
+  handleReconnect();
+});
 
 createBot();
