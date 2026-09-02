@@ -1,21 +1,19 @@
 const bedrock = require('bedrock-protocol');
 
-// Server configuration
 const CONFIG = {
   host: process.env.SERVER_HOST || 'OwnServer-WKpp.aternos.me',
   port: parseInt(process.env.SERVER_PORT) || 48825,
   username: process.env.BOT_NAME || 'Aternos_KeepAlive',
   offline: true,
   skipPing: true,
-  raknetBackend: 'jsp-raknet', // Bypasses native C++ compilation requirements
-  protocolVersion: 681         // Forces client handshake on recent Bedrock protocols
+  raknetBackend: 'jsp-raknet'
 };
 
 let client = null;
 let reconnectTimer = null;
 
 function createBot() {
-  console.log(`📡 Connecting to pure Bedrock server at ${CONFIG.host}:${CONFIG.port}...`);
+  console.log(`📡 Connecting to Bedrock server at ${CONFIG.host}:${CONFIG.port}...`);
 
   try {
     client = bedrock.createClient(CONFIG);
@@ -66,7 +64,6 @@ function handleReconnect() {
   }, 15000);
 }
 
-// Global crash handler to keep process alive
 process.on('uncaughtException', (err) => {
   console.log(`⚠️ Uncaught Exception: ${err.message}`);
   handleReconnect();
