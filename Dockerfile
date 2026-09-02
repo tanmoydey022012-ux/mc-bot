@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Install dependencies including ca-certificates
 RUN apt-get update && apt-get install -y \
     curl \
     unzip \
@@ -12,9 +13,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /bedrock-server
 
-# Fixed URL and DNS fallback added
-RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf \
-    && curl -v -A "Mozilla/5.0" -L -o bedrock.zip https://minecraft.net/bedrockdedicatedserver/bin-linux/bedrock-server-1.26.45.1.zip \
+# Download Bedrock server using updated browser-mimicking headers
+RUN URL=$(curl -s -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+    -H "Accept-Language: en-US,en;q=0.9" \
+    https://www.minecraft.net/en-us/download/server/bedrock | grep -o 'https://download.minecraft.net/bin-linux/bedrock-server-[^"]*' | head -n 1) \
+    && if [ -z "$URL" ]; then URL="https://download.minecraft.net/bin-linux/bedrock-server-1.21.50.07.zip"; fi \
+    && curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -L -o bedrock.zip "$URL" \
     && unzip bedrock.zip \
     && rm bedrock.zip
 
