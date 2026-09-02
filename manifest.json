@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "24/7 Keep-Alive Bot Module",
+    "name": "Aternos KeepAlive",
+    "uuid": "c074665c-6b3a-442d-9e66-6b6a0a75220a",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 0]
+  },
+  "modules": [
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "1d8a113d-5192-4876-8098-b6ffbe16e13b",
+      "version": [1, 0, 0],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.10.0"
+    },
+    {
+      "module_name": "@minecraft/server-net",
+      "version": "1.0.0-beta"
+    }
+  ]
+}
