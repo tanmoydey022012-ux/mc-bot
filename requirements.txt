@@ -1,1 +1,1 @@
-bedrock-bot
+# No external dependencies needed
