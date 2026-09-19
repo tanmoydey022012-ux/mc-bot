@@ -1,40 +1,47 @@
-import socket
-import time
 import os
-import struct
+import time
+from playwright.sync_api import sync_playwright
 
-HOST = os.getenv("SERVER_HOST", "OwnServer-WKpp.aternos.me")
-PORT = int(os.getenv("SERVER_PORT", "48825"))
+USERNAME = os.getenv("ATERNOS_USER", "YOUR_ATERNOS_USERNAME")
+PASSWORD = os.getenv("ATERNOS_PASS", "YOUR_ATERNOS_PASSWORD")
 
-# RakNet Unconnected Ping Magic Bytes
-RAKNET_MAGIC = b"\x00\xff\xff\x00\xfe\xfe\xfe\xfe\xfd\xfd\xfd\xfd\x12\x34\x56\x78"
-
-def send_keepalive():
-    client_id = 0x123456789ABCDEF0
-    ping_time = int(time.time() * 1000)
-    
-    # Construct RakNet Unconnected Ping Packet (ID: 0x01)
-    packet = b"\x01" + struct.pack(">Q", ping_time) + RAKNET_MAGIC + struct.pack(">Q", client_id)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(5)
-
-    try:
-        sock.sendto(packet, (HOST, PORT))
-        print(f"[{time.strftime('%H:%M:%S')}] 📡 Keep-alive ping sent to {HOST}:{PORT}")
+def check_and_start():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
         
-        data, _ = sock.recvfrom(1024)
-        if data and data[0] == 0x1c: # ID_UNCONNECTED_PONG
-            print(f"[{time.strftime('%H:%M:%S')}] 🎉 SUCCESS: Server responded! Keep-alive active.")
-    except socket.timeout:
-        print(f"[{time.strftime('%H:%M:%S')}] ⚠️ Timeout: Server offline or starting up...")
-    except Exception as e:
-        print(f"[{time.strftime('%H:%M:%S')}] ⚠️ Network error: {e}")
-    finally:
-        sock.close()
+        try:
+            print(f"[{time.strftime('%H:%M:%S')}] 🔐 Logging into Aternos...")
+            page.goto("https://aternos.org/go/")
+            page.fill("input[placeholder='Username or Email']", USERNAME)
+            page.fill("input[placeholder='Password']", PASSWORD)
+            page.click("#login")
+            
+            page.wait_for_selector(".server-body", timeout=15000)
+            page.goto("https://aternos.org/server/")
+            
+            status = page.inner_text(".server-status").strip()
+            print(f"[{time.strftime('%H:%M:%S')}] 📊 Server Status: {status}")
+            
+            if "Offline" in status:
+                print("⚡ Server is offline! Clicking START button...")
+                page.click("#start")
+                
+                # Accept confirmation dialogs if they appear
+                try:
+                    page.click("#confirm", timeout=5000)
+                except:
+                    pass
+                print("🎉 Start command issued successfully!")
+            else:
+                print("✅ Server is already running or starting up.")
+                
+        except Exception as e:
+            print(f"⚠️ Dashboard error: {e}")
+        finally:
+            browser.close()
 
 if __name__ == "__main__":
-    print(f"🚀 Starting Light-weight Bedrock Keep-Alive for {HOST}:{PORT}...")
     while True:
-        send_keepalive()
-        time.sleep(30) # Sends a ping every 30 seconds to keep Aternos alive
+        check_and_start()
+        time.sleep(300) # Checks every 5 minutes
