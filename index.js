@@ -8,7 +8,7 @@ function startBot() {
     port: 48825,
     username: 'Bot',
     offline: true,
-    version: '1.26.40',
+    version: '1.26.50.1',
     skipPing: true
   });
 
