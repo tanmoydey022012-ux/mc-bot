@@ -1,7 +1,8 @@
+
 FROM node:20-alpine
 
-# Install native compilation dependencies
-RUN apk add --no-libc-check --no-cache python3 make g++ libatomic
+# Install build dependencies without invalid flags
+RUN apk add --no-cache python3 make g++ libatomic
 
 WORKDIR /usr/src/app
 
